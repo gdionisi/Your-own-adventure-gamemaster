@@ -17,3 +17,4 @@
     * Clicking on a button doesn't send the index, but the choice's text itself.
 [] Need to train on way more data, the outputs are too limited for now, sounds like a kid trying to imitate a good writer's style.
 [] Sometimes the actions suggested are not formatted properly.
+[] Maybe should set a "window" for the context to avoid sending too much data after many messages.
