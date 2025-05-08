@@ -49,7 +49,7 @@ if prompt := st.chat_input("What would you like to ask?"):
             try:
                 chat_response = client.agents.complete(
                     agent_id=AGENT_ID,
-                    messages=[{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
+                    messages=[{"role": "user", "content": prompt}],
                 )
 
                 # Extract and display the response

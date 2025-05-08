@@ -11,15 +11,17 @@ client = Mistral(api_key=api_key)
 def upload_dataset(filename: str):
     training_data = client.files.upload(
         file={
-            "file_name": training_file,
-            "content": open(f"samples/{training_file}", "rb"),
+            "file_name": filename,
+            "content": open(f"samples/{filename}", "rb"),
         }
     ) 
 
     print(f"Uploaded file {training_data.id}")
 
+    return training_data
 
-def train(client: Mistral, files_ids: list[str]):
+
+def train(files_ids: list[str]):
     """
     Train a new fine-tuned model from some datasets.
     """
@@ -36,9 +38,10 @@ def train(client: Mistral, files_ids: list[str]):
 
     # start a fine-tuning job
     job_id = created_job.id
+    print(f"Created job {job_id}")
 
     # wait until job has been validated
-    while client.fine_tuning.jobs.get(job_id=job_id).status == "QUEUED":
+    while client.fine_tuning.jobs.get(job_id=job_id).status != "VALIDATED":
         print("Job not validated yet, waiting...")
         time.sleep(1)
 
@@ -58,6 +61,8 @@ def train(client: Mistral, files_ids: list[str]):
             print(f"Current status: {job.status}")
             time.sleep(1)
 
+    return model_id
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
@@ -66,4 +71,4 @@ if __name__ == "__main__":
     training_file = args.training_file
 
     upload_dataset(training_file)
-    train(client, [training_file])
+    train([training_file])
