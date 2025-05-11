@@ -57,9 +57,20 @@ def main():
 
     # Initial chat input
     if not st.session_state.messages:
-        if st.button("Start the game"):
-            st.session_state.messages.append({"role": "user", "content": "Start the game"})
-            st.rerun()
+        col1, col2, col3, col4 = st.columns([1, 3, 1, 1])
+        with col1:
+            st.text("Start a")
+        with col2:
+            story_type = st.text_input(label="Story type",placeholder="fantasy, sci-fi, cyberpunk...", label_visibility="collapsed")
+        with col3:
+            st.text("story")
+        with col4:
+            if st.button("▶️", help="Start the adventure"):
+                if story_type:
+                    st.session_state.messages.append({"role": "user", "content": f"Start a {story_type} story"})
+                    st.rerun()
+                else:
+                    st.error("Please enter a story type")
 
     # Generate response if there's a new user message
     if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
