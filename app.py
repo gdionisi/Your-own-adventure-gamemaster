@@ -1,3 +1,4 @@
+import random
 import streamlit as st
 import os
 import re
@@ -24,6 +25,28 @@ STORY_AGENT_ID = os.getenv("STORY_AGENT_ID")
 CHOICES_AGENT_ID = os.getenv("CHOICES_AGENT_ID")
 
 client = Mistral(api_key=API_KEY)
+
+SUGGESTED_THEMES = [
+    "fantasy",
+    "sci-fi",
+    "cyberpunk",
+    "mystery",
+    "horror",
+    "romance",
+    "adventure",
+    "comedy",
+    "drama",
+    "thriller",
+    "western",
+    "historical",
+    "steampunk",
+    "superhero",
+    "poetic",
+    "slice of life",
+]
+
+def get_random_theme():
+    return random.choice(SUGGESTED_THEMES)
 
 def extract_choices(text):
     # Find all numbered choices in the text
@@ -61,16 +84,20 @@ def main():
         with col1:
             st.text("Start a")
         with col2:
-            story_type = st.text_input(label="Story type",placeholder="fantasy, sci-fi, cyberpunk...", label_visibility="collapsed")
+            story_type = st.text_input(value=st.session_state.get("story_type", ""), label="Story type", placeholder="fantasy, sci-fi, cyberpunk...", label_visibility="collapsed")
         with col3:
             st.text("story")
         with col4:
-            if st.button("▶️", help="Start the adventure"):
-                if story_type:
-                    st.session_state.messages.append({"role": "user", "content": f"Start a {story_type} story"})
+            col41, col42 = st.columns([1, 1])
+            with col41:
+                if st.button("▶️", help="Start the adventure"):
+                    if story_type:
+                        st.session_state.messages.append({"role": "user", "content": f"Start a {story_type} story"})
                     st.rerun()
-                else:
-                    st.error("Please enter a story type")
+            with col42:
+                if st.button("🔄", help="Random story"):
+                    st.session_state.story_type = get_random_theme()
+                    st.rerun()
 
     # Generate response if there's a new user message
     if st.session_state.messages and st.session_state.messages[-1]["role"] == "user":
