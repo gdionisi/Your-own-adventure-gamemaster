@@ -12,13 +12,16 @@ st.set_page_config(
     page_title="Your own adventure", page_icon="🤖", layout="centered"
 )
 
-# Initialize session state for chat history
+# Initialize session state for chat history and current choices
 if "messages" not in st.session_state:
     st.session_state.messages = []
+if "current_choices" not in st.session_state:
+    st.session_state.current_choices = None
 
 # API configuration
 API_KEY = os.getenv("MISTRAL_API_KEY")
-AGENT_ID = os.getenv("AGENT_ID")
+STORY_AGENT_ID = os.getenv("STORY_AGENT_ID")
+CHOICES_AGENT_ID = os.getenv("CHOICES_AGENT_ID")
 
 client = Mistral(api_key=API_KEY)
 
@@ -30,34 +33,27 @@ def extract_choices(text):
     return main_text, choices
 
 def main():
-    if not API_KEY or not AGENT_ID:
-        st.error("Please set your MISTRAL_API_KEY and AGENT_ID in the .env file")
+    if not API_KEY or not STORY_AGENT_ID or not CHOICES_AGENT_ID:
+        st.error("Please set your MISTRAL_API_KEY, STORY_AGENT_ID, and CHOICES_AGENT_ID in the .env file")
         st.stop()
 
     # Title and description
     st.title("📖 Your own adventure")
 
-    last_user_choice = ""
-
     # Display chat messages
-    for idx, message in enumerate(st.session_state.messages):
+    for message in st.session_state.messages:
         with st.chat_message(message["role"]):
-            if message["role"] == "assistant":
-                # Split the message into main text and choices
-                main_text, choices = extract_choices(message["content"])
-                st.markdown(main_text)
-                if choices:
-                    # Create a unique key for this message's buttons
-                    button_key = f"choice_{idx}"
-                    # Display buttons for choices vertically
-                    for idx, choice in enumerate(choices):
-                        if st.button(choice.strip(), key=f"{button_key}_{idx}"):
-                            # Add user's choice to chat history
-                            last_user_choice = {"role": "user", "content": choice.strip()}
-                            st.session_state.messages.append(last_user_choice)
-                            st.rerun()
-            else:
-                st.markdown(message["content"])
+            st.markdown(message["content"])
+
+    # Display current choices if they exist
+    if st.session_state.current_choices:
+        st.markdown("What would you like to do?")
+        for idx, choice in enumerate(st.session_state.current_choices):
+            if st.button(choice.strip(), key=f"choice_{idx}"):
+                # Add user's choice to chat history
+                st.session_state.messages.append({"role": "user", "content": choice.strip()})
+                st.session_state.current_choices = None
+                st.rerun()
 
     # Initial chat input
     if not st.session_state.messages:
@@ -70,16 +66,39 @@ def main():
         with st.chat_message("assistant"):
             with st.spinner("Thinking..."):
                 try:
-                    chat_response = client.agents.complete(
-                        agent_id=AGENT_ID,
+                    # First, get the story continuation from the story agent
+                    story_response = client.agents.complete(
+                        agent_id=STORY_AGENT_ID,
                         messages=[{"role": message["role"], "content": message["content"]} for message in st.session_state.messages],
                     )
-
-                    # Extract and display the response
-                    assistant_response = chat_response.choices[0].message.content
+                    
+                    if not story_response or not story_response.choices:
+                        st.error("Failed to get story response")
+                        st.stop()
+                        
+                    story_content = story_response.choices[0].message.content
+                    
+                    # Add the story content to the chat history
                     st.session_state.messages.append(
-                        {"role": "assistant", "content": assistant_response}
+                        {"role": "assistant", "content": story_content}
                     )
+                    
+                    # Then, get the choices from the choices agent
+                    choices_prompt = f"Based on this story segment, suggest 3-4 possible choices for the player:\n\n{story_content}"
+                    choices_response = client.agents.complete(
+                        agent_id=CHOICES_AGENT_ID,
+                        messages=[{"role": "user", "content": choices_prompt}],
+                    )
+                    
+                    if not choices_response or not choices_response.choices:
+                        st.error("Failed to get choices response")
+                        st.stop()
+                        
+                    choices_content = choices_response.choices[0].message.content
+                    _, choices = extract_choices(choices_content)
+                    
+                    # Store the choices in session state
+                    st.session_state.current_choices = choices
                     st.rerun()
 
                 except Exception as e:
